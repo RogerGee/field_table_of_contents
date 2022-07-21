@@ -1,0 +1,14 @@
+{
+    "name": "tccl-drupal/field_table_of_contents",
+    "description": "Provides a custom field type for rendering a table of contents",
+    "type": "drupal-module",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Roger Gee",
+            "email": "roger.gee@tulsalibrary.org"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {}
+}

@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * field_table_of_contents.module
+ *
+ * field_table_of_contents
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function field_table_of_contents_theme($existing,$type,$theme,$path) {
+  return [
+
+  ];
+}
+
+/**
+ * Local Variables:
+ * mode:php
+ * End:
+ */
