@@ -63,7 +63,8 @@ class TableOfContents {
    */
   public function toRenderArray() : array {
     $render = [
-      '#markup' => 'TABLE OF CONTENTS (TEST)',
+      '#theme' => 'field_table_of_contents_field',
+      '#contents' => $this->structure,
     ];
 
     return $render;
@@ -105,19 +106,16 @@ class TableOfContents {
    *  The display label for the heading.
    * @param string $id
    *  The ID used to link the heading to an element in the page.
-   * @param bool $inject
-   *  
    * @param int $level
    *  The nesting level for the heading.
    */
-  public function addHeading(string $label,string $id,bool $inject,int $level = 0) : void {
+  public function addHeading(string $label,string $id,int $level = 0) : void {
     $bucket =& $this->structure;
     for ($i = 0;$i < $level;++$i) {
       if (empty($bucket)) {
         $bucket[0] = [
           'id' => null,
           'label' => '',
-          'inject' => false,
           'level' => $i,
           'children' => [],
         ];

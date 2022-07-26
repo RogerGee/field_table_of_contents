@@ -11,7 +11,11 @@
  */
 function field_table_of_contents_theme($existing,$type,$theme,$path) {
   return [
-
+    'field_table_of_contents_field' => [
+      'variables' => [
+        'contents' => [],
+      ],
+    ],
   ];
 }
 

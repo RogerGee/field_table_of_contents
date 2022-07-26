@@ -1,0 +1,36 @@
+{#
+/**
+ * @file
+ * Default theme implementation for field_table_of_contents_field.
+ *
+ * This template is used to render the table of contents field value.
+ *
+ * Variables:
+ *  - contents[]: The top-level table of contents array
+ *   - id: The target anchor ID for the heading.
+ *   - label: The display text for the heading.
+ *   - level: The nested level of the heading.
+ *   - children[]: The child headings organized under this heading. This is a
+ *      recursive structure.
+ */
+#}
+{% macro table_of_contents(items) %}
+  {% import _self as self %}
+
+  <ul>
+    {% for item in items %}
+      <li>
+        <a href="#{{ item.id }}">{{ item.label }}</a>
+        {% if item.children %}
+          {{ self.table_of_contents(item.children) }}
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% endmacro %}
+
+{% from _self import table_of_contents %}
+
+<div>
+  {{ table_of_contents(contents) }}
+</div>
