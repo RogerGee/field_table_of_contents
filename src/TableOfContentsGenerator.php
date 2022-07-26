@@ -76,6 +76,8 @@ class TableOfContentsGenerator {
    *  - field_types: List of field type machine names that are to be searched for
    *      headings.
    *  - scan_paragraphs: If true, then paragraph fields are also searched.
+   *  - is_relative: If true, then the table of contents will contain relative
+   *    hypertext.
    * @param bool $cache
    *  Determines if a cached table of contents may be looked up instead of 
    *
@@ -90,7 +92,7 @@ class TableOfContentsGenerator {
     $settings += [
       'field_types' => ['text_long','text_with_summary'],
       'scan_paragraphs' => true,
-      'is_relative' => true,
+      'is_relative' => false,
     ];
 
     $fieldTypes = $settings['field_types'];
@@ -144,8 +146,6 @@ class TableOfContentsGenerator {
   }
 
   protected function processHtml(TableOfContents $toc,string $html) : ?DOMDocument {
-    $prefix = sha1($html);
-
     $dom = Html::load($html);
     $xpath = new \DOMXpath($dom);
 
@@ -159,13 +159,16 @@ class TableOfContentsGenerator {
     $nodes = $xpath->query($expr);
 
     foreach ($nodes as $node) {
-      $label = $node->nodeValue;
+      $label = trim($node->nodeValue);
+      if (empty($label)) {
+        continue;
+      }
 
       if (isset($node->attributes['id']) && !empty($node->attributes['id'])) {
         $id = $node->attributes['id'];
       }
       else {
-        $id = static::generateId($prefix);
+        $id = static::generateId($label);
 
         if ($node->parentNode) {
           // Inject an anchor element for referencing this heading via the ID.
@@ -196,17 +199,7 @@ class TableOfContentsGenerator {
 
   }
 
-  protected static function generateId(string $prefix) : string {
-    $s = '';
-    for ($i = 0;$i < 16;++$i) {
-      if ($i % 2 == 0) {
-        $n = rand(65,90);
-      }
-      else {
-        $n = rand(97,122);
-      }
-      $s .= chr($n);
-    }
-    return "{$prefix}_{$s}";
+  protected static function generateId(string $label) : string {
+    return preg_replace('/[^0-9a-zA-Z\.]+/','-',$label);
   }
 }

@@ -8,6 +8,7 @@
  * Variables:
  *  - title: Optional title string to render for table of contents.
  *  - contents[]: The top-level table of contents array
+ *   - anchor: The link render element for the anchor.
  *   - id: The target anchor ID for the heading.
  *   - label: The display text for the heading.
  *   - level: The nested level of the heading.
@@ -21,7 +22,7 @@
   <ul>
     {% for item in items %}
       <li>
-        <a href="#{{ item.id }}">{{ item.label }}</a>
+        {{ item.anchor }}
         {% if item.children %}
           {{ self.table_of_contents(item.children) }}
         {% endif %}

@@ -164,9 +164,11 @@ class TableOfContentsFieldFormatter extends FormatterBase {
       // field or the parent node if none was assigned.
       if (isset($item->nid)) {
         $node = Node::load($item->nid);
+        $settings['is_relative'] = false;
       }
       else if ($entity instanceof Node) {
         $node = $entity;
+        $settings['is_relative'] = true;
       }
       else {
         $elements[$delta] = [

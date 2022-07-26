@@ -9,6 +9,7 @@
 namespace Drupal\field_table_of_contents;
 
 use DOMDocument;
+use Drupal\Core\Url;
 use Drupal\Component\Utility\Html;
 use Drupal\node\Entity\Node;
 
@@ -115,6 +116,7 @@ class TableOfContents {
       if (empty($bucket)) {
         $bucket[0] = [
           'id' => null,
+          'anchor' => '',
           'label' => '',
           'level' => $i,
           'children' => [],
@@ -124,8 +126,21 @@ class TableOfContents {
       $bucket =& $bucket[count($bucket)-1]['children'];
     }
 
+    if ($this->isRelative) {
+      $anchorUrl = Url::fromRoute('<none>',[],['fragment' => $id]);
+    }
+    else {
+      $anchorUrl = $this->entity->toUrl();
+      $anchorUrl->setOption('fragment',$id);
+    }
+
     $bucket[] = [
       'id' => $id,
+      'anchor' => [
+        '#type' => 'link',
+        '#title' => $label,
+        '#url' => $anchorUrl,
+      ],
       'label' => $label,
       'level' => $level,
       'children' => [],
