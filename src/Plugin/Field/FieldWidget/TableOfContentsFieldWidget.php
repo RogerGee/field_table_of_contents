@@ -11,6 +11,7 @@ namespace Drupal\field_table_of_contents\Plugin\Field\FieldWidget;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\Entity\Node;
 
 /**
  * Provides a field widget for the table of contents field.
@@ -132,10 +133,8 @@ class TableOfContentsFieldWidget extends WidgetBase {
     }
 
     $nid = $items[$delta]->nid;
-    if (is_int($nid) && $nid > 0) {
-      $defaultValue = [
-        'target_id' => $nid,
-      ];
+    if (is_numeric($nid)) {
+      $defaultValue = Node::load($nid);
     }
     else {
       $defaultValue = '';
@@ -144,6 +143,10 @@ class TableOfContentsFieldWidget extends WidgetBase {
     $nodeId = [
       '#type' => 'entity_autocomplete',
       '#title' => $this->t('Target Page'),
+      '#description' => $this->t(
+        'Indicate the page that will be targeted for the table of contents. Leave '
+        .'empty to render contents for the current page.'
+      ),
       '#default_value' => $defaultValue,
       '#target_type' => 'node',
       '#selection_handler' => 'default',
