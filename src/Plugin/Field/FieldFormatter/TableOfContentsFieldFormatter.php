@@ -11,6 +11,7 @@ namespace Drupal\field_table_of_contents\Plugin\Field\FieldFormatter;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\Entity\Node;
 
 /**
  * Provides a field formatter for rendering a table of contents.
@@ -147,12 +148,34 @@ class TableOfContentsFieldFormatter extends FormatterBase {
    * {@inheritdoc}
    */
   public function viewElements(FieldItemListInterface $items,$langcode = null) {
-    $elements = [];
+    $generator = \Drupal::service('field_table_of_contents.generator');
+    $entity = $items->getEntity();
 
+    // Set the render array for each item. Note that a table of contents field 
+    $elements = [];
     foreach ($items as $delta => $item) {
-      $elements[$delta] = [
-        '#markup' => 'TABLE OF CONTENTS (TEST)',
-      ];
+      // Determine which content node is to be used to generate the table of
+      // contents. This is either the one assigned to the table of contents
+      // field or the parent node if none was assigned.
+      if (isset($item->nid)) {
+        $node = Node::load($item->nid);
+      }
+      else if ($entity instanceof Node) {
+        $node = $entity;
+      }
+      else {
+        $elements[$delta] = [
+          '#markup' => '<b>Cannot render table of contents in non-node content entity.</b>',
+        ];
+        continue;
+      }
+
+      // Render the table of contents.
+      $settings = [];
+      $toc = $generator->generate($node,$settings);
+      $render = $toc->toRenderArray();
+
+      $elements[$delta] = $render;
     }
 
     return $elements;
