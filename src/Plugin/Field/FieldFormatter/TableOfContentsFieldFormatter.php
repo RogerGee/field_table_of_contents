@@ -151,7 +151,12 @@ class TableOfContentsFieldFormatter extends FormatterBase {
     $generator = \Drupal::service('field_table_of_contents.generator');
     $entity = $items->getEntity();
 
-    // Set the render array for each item. Note that a table of contents field 
+    // Prepare generator settings from formatter settings.
+    $settings = [
+      'field_types' => $this->getSetting('field_types'),
+      'scan_paragraphs' => (bool)$this->getSetting('scan_paragraphs'),
+    ];
+
     $elements = [];
     foreach ($items as $delta => $item) {
       // Determine which content node is to be used to generate the table of
@@ -171,9 +176,13 @@ class TableOfContentsFieldFormatter extends FormatterBase {
       }
 
       // Render the table of contents.
-      $settings = [];
       $toc = $generator->generate($node,$settings);
       $render = $toc->toRenderArray();
+
+      // Apply any remaining proerties.
+      $render += [
+        '#title' => $item->title,
+      ];
 
       $elements[$delta] = $render;
     }

@@ -6,6 +6,7 @@
  * This template is used to render the table of contents field value.
  *
  * Variables:
+ *  - title: Optional title string to render for table of contents.
  *  - contents[]: The top-level table of contents array
  *   - id: The target anchor ID for the heading.
  *   - label: The display text for the heading.
@@ -32,5 +33,8 @@
 {% from _self import table_of_contents %}
 
 <div>
+  {% if title %}
+    <h2>{{ title }}</h2>
+  {% endif %}
   {{ table_of_contents(contents) }}
 </div>
