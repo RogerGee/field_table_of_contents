@@ -104,6 +104,21 @@ class TableOfContents {
             '#markup' => $markup,
           ];
         }
+        else if (is_string($info)) {
+          $field = $render['content'][$fieldName][$delta];
+          $render['content'][$fieldName][$delta] = [
+            '#theme' => 'field_table_of_contents_inject',
+            '#anchor' => [
+              '#type' => 'link',
+              '#title' => '',
+              '#url' => Url::fromRoute('<none>'),
+              '#attributes' => [
+                'id' => $info,
+              ],
+            ],
+            '#field' => $field,
+          ];
+        }
 
         unset($item);
       }

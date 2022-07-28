@@ -17,6 +17,13 @@ function field_table_of_contents_theme($existing,$type,$theme,$path) {
         'contents' => [],
       ],
     ],
+
+    'field_table_of_contents_inject' => [
+      'variables' => [
+        'anchor' => '',
+        'field' => '',
+      ],
+    ],
   ];
 }
 
