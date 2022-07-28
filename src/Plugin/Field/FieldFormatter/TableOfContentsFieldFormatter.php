@@ -154,6 +154,7 @@ class TableOfContentsFieldFormatter extends FormatterBase {
     // Prepare generator settings from formatter settings.
     $settings = [
       'field_types' => $this->getSetting('field_types'),
+      'heading_fields' => $this->getSetting('heading_fields'),
       'scan_paragraphs' => (bool)$this->getSetting('scan_paragraphs'),
     ];
 

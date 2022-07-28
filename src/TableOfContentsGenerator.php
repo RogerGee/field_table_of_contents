@@ -10,6 +10,7 @@ namespace Drupal\field_table_of_contents;
 
 use DOMDocument;
 use Drupal\Component\Utility\Html;
+use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem;
 use Drupal\Core\Render\Renderer;
@@ -79,7 +80,7 @@ class TableOfContentsGenerator {
    *  - is_relative: If true, then the table of contents will contain relative
    *    hypertext.
    * @param bool $cache
-   *  Determines if a cached table of contents may be looked up instead of 
+   *  Determines if a cached table of contents may be looked up instead of
    *
    * @return \Drupal\field_table_of_contents\TableOfContents
    */
@@ -91,6 +92,7 @@ class TableOfContentsGenerator {
 
     $settings += [
       'field_types' => ['text_long','text_with_summary'],
+      'heading_fields' => [],
       'scan_paragraphs' => true,
       'is_relative' => false,
     ];
@@ -99,18 +101,27 @@ class TableOfContentsGenerator {
     $scanParagraphs = $settings['scan_paragraphs'];
     $isRelative = $settings['is_relative'];
 
+    // Parse heading field structure.
+    $headingFields = [];
+    foreach ($settings['heading_fields'] as $repr) {
+      list($entity,$bundle,$fieldName) = explode(':',$repr);
+      $headingFields[$entity][$bundle][$fieldName] = true;
+    }
+
     $result = new TableOfContents($node,$isRelative);
 
     foreach ($node->getFields() as $fieldName => $itemList) {
       foreach ($itemList as $delta => $fieldItem) {
         $fieldDef = $fieldItem->getFieldDefinition();
         $fieldType = $fieldDef->getType();
+        $bundle = $fieldDef->getTargetBundle();
 
         // Never process a table of contents field (even if configured).
         if ($fieldType == 'tccl_table_of_contents') {
           continue;
         }
 
+        // Process paragraph subfields if configured.
         if ($fieldItem instanceof EntityReferenceItem && $scanParagraphs) {
           if ($fieldItem->entity instanceof Paragraph) {
             $this->processParagraphFields($result,$fieldItem->entity);
@@ -118,25 +129,18 @@ class TableOfContentsGenerator {
           }
         }
 
+        // Check if the field is configured as a heading field.
+        if (isset($headingFields['node'][$bundle][$fieldName])) {
+          $this->processHeadingField($result,$fieldItem);
+        }
+
         // Only process fields having a configured field type.
         if (!in_array($fieldType,$fieldTypes)) {
           continue;
         }
 
-        // Evaluate the field as HTML by rendering it. NOTE: for now, we always
-        // use the 'full' view mode.
-        $render = $fieldItem->view('full');
-        $html = $this->renderer->renderRoot($render);
-
-        if (!empty($html)) {
-          $dom = $this->processHtml($result,$html);
-
-          // If HTML was processed, set field DOM so that field will be
-          // preprocessed.
-          if ($dom) {
-            $result->setFieldDOM($fieldName,$delta,$dom);
-          }
-        }
+        // Default case: try processing the field as HTML.
+        $this->processHtml($result,$node,$fieldName,$delta,$fieldItem);
       }
     }
 
@@ -145,10 +149,24 @@ class TableOfContentsGenerator {
     return $result;
   }
 
-  protected function processHtml(TableOfContents $toc,string $html) : ?DOMDocument {
+  protected function processHtml(TableOfContents $toc,
+                                 ContentEntityBase $entity,
+                                 string $fieldName,
+                                 int $delta,
+                                 FieldItemInterface $fieldItem) : void
+  {
+    // Evaluate the field as HTML by rendering it. NOTE: for now, we always use
+    // the 'full' view mode.
+    $render = $fieldItem->view('full');
+    $html = $this->renderer->renderRoot($render);
+    if (empty($html)) {
+      return;
+    }
+
+    // Parse HTML and pull out header nodes for evaluation.
+
     $dom = Html::load($html);
     $xpath = new \DOMXpath($dom);
-
     $expr = [];
     for ($n = 2;$n <= 4;++$n) {
       $sel = "h$n";
@@ -158,6 +176,9 @@ class TableOfContentsGenerator {
     $expr = implode(' | ',$expr);
     $nodes = $xpath->query($expr);
 
+    // Add headings based on header nodes. NOTE: we do not process <h1> since
+    // this is commonly used in Drupal for page titles only.
+    $n = 0;
     foreach ($nodes as $node) {
       $label = trim($node->nodeValue);
       if (empty($label)) {
@@ -178,7 +199,7 @@ class TableOfContentsGenerator {
         }
       }
 
-      if (preg_match('/h([1-9])/',$node->nodeName,$matches)) {
+      if (preg_match('/h([2-9])/',$node->nodeName,$matches)) {
         $level = (int)$matches[1] - 2;
       }
       else {
@@ -186,13 +207,26 @@ class TableOfContentsGenerator {
       }
 
       $toc->addHeading($label,$id,$level);
+      $n += 1;
     }
 
-    if (count($nodes) > 0) {
-      return $dom;
+    // Set field info if we added at least one heading. This will replace the
+    // field content with the saved representation of the DOM document.
+    if ($n > 0) {
+      $toc->setFieldInfo($entity,$fieldName,$delta,$dom);
     }
+  }
 
-    return null;
+  protected function processHeadingField(TableOfContents $toc,
+                                         ContentEntityBase $entity,
+                                         string $fieldName,
+                                         int $delta,
+                                         FieldItemInterface $fieldItem) : void
+  {
+    $text = substr(trim($fieldItem->getString()),0,128);
+    $id = static::generateId($text);
+    $toc->addHeading($text,$id);
+    $toc->setFieldInfo($entity,$fieldName,$delta,$id);
   }
 
   protected function processParagraphFields(TableOfContents $toc,Paragraph $paragraph) : void {

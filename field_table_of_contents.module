@@ -30,7 +30,7 @@ function field_table_of_contents_preprocess_node(&$variables) {
   $toc = $generator->lookup($node);
 
   if ($toc) {
-    $toc->preprocess($variables);
+    $toc->preprocessNode($variables);
   }
 }
 

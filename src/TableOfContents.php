@@ -11,6 +11,7 @@ namespace Drupal\field_table_of_contents;
 use DOMDocument;
 use Drupal\Core\Url;
 use Drupal\Component\Utility\Html;
+use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\node\Entity\Node;
 
 class TableOfContents {
@@ -20,14 +21,17 @@ class TableOfContents {
    *
    * @var \Drupal\node\Entity\Node
    */
-  private $entity;
+  private $node;
 
   /**
    * Field information used to preprocess the node entity.
    *
    * @var array
    */
-  private $fieldInfo = [];
+  private $fieldInfo = [
+    'node' => [],
+    'paragraph' => [],
+  ];
 
   /**
    * Flag determining whether page references are relative or local.
@@ -47,13 +51,13 @@ class TableOfContents {
    * Creates a new TableOfContents instance.
    *
    * @param \Drupal\node\Entity\Node
-   *  The Node entity on which the table of contents is generating.
+   *  The Node entity from which the table of contents entries are generated.
    * @param bool $isRelative
    *  Determines whether table of contents references are relative to the page
    *  or absolute.
    */
-  public function __construct(Node $entity,bool $isRelative = true) {
-    $this->entity = $entity;
+  public function __construct(Node $node,bool $isRelative = true) {
+    $this->node = $node;
     $this->isRelative = $isRelative;
   }
 
@@ -78,14 +82,26 @@ class TableOfContents {
    * @param array &$render
    *  The render array to modify.
    */
-  public function preprocess(array &$render) : void {
-    foreach ($this->fieldInfo as $fieldName => $fields) {
+  public function preprocessNode(array &$render) : void {
+    assert(isset($render['node']) && $render['node'] === $this->node);
+
+    // Extract field information for the node that will are modifying.
+    $id = $this->node->id();
+    $type = $this->node->bundle();
+    $bucket = $this->fieldInfo[$type][$id];
+
+    foreach ($bucket as $fieldName => $fields) {
       foreach ($fields as $delta => $info) {
         if (!isset($render['content'][$fieldName][$delta])) {
           continue;
         }
 
         $item =& $render['content'][$fieldName]['#items'][$delta];
+
+        // Replace the render array for the field item. This is safe to do since
+        // we either 1) reuse the replaced render array in a nested context or
+        // 2) replace the array with markup that was already generated from a
+        // similar array.
 
         if ($info instanceof DOMDocument) {
           $markup = Html::serialize($info);
@@ -130,7 +146,7 @@ class TableOfContents {
       $anchorUrl = Url::fromRoute('<none>',[],['fragment' => $id]);
     }
     else {
-      $anchorUrl = $this->entity->toUrl();
+      $anchorUrl = $this->node->toUrl();
       $anchorUrl->setOption('fragment',$id);
     }
 
@@ -148,17 +164,26 @@ class TableOfContents {
   }
 
   /**
-   * Adds field info for a field that requires its HTML value replaced with
-   * updated content via a DOMDocument instance.
+   * Adds field information that is used when the attached entity is
+   * preprocessed.
    *
+   * @param \Drupal\Core\Entity\ContentEntityBase $entity
+   *  The entity that contains the field.
    * @param string $fieldName
    *  The name of the field whose content is represented by the DOM.
    * @param int $delta
    *  The field delta.
-   * @param DOMDocument $dom
-   *  The DOM representing the parsed field HTML content.
+   * @param mixed $info
+   *  The field information; this can be a number of different values:
+   *   - DOMDocument: The field content will be replaced with the saved
+   *     representation of this DOM instance.
+   *   - string: A unique identifier for the field that will be used to
+   *     generate an anchor injected before the field element.
    */
-  public function setFieldDOM(string $fieldName,int $delta,DOMDocument $dom) : void {
-    $this->fieldInfo[$fieldName][$delta] = $dom;
+  public function setFieldInfo(ContentEntityBase $entity,string $fieldName,int $delta,$info) : void {
+    $id = $entity->id();
+    $type = $entity->bundle();
+
+    $this->fieldInfo[$type][$id][$fieldName][$delta] = $info;
   }
 }
