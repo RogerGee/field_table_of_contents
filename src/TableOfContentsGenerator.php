@@ -15,7 +15,7 @@ use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem;
 use Drupal\Core\Render\Renderer;
 use Drupal\node\Entity\Node;
-use Drupal\paragraph\Entity\Paragraph;
+use Drupal\paragraphs\Entity\Paragraph;
 
 /**
  * Service that generates a table of contents structure.
@@ -85,10 +85,13 @@ class TableOfContentsGenerator {
    * @return \Drupal\field_table_of_contents\TableOfContents
    */
   public function generate(Node $node,array $settings = [],bool $cache = true) : TableOfContents {
+    // Look up and return cached version if present and configured.
     $nid = $node->id();
     if ($cache && isset($this->cache[$nid])) {
       return $this->cache[$nid];
     }
+
+    // Extract settings.
 
     $settings += [
       'field_types' => ['text_long','text_with_summary'],
@@ -97,24 +100,37 @@ class TableOfContentsGenerator {
       'is_relative' => false,
     ];
 
-    $fieldTypes = $settings['field_types'];
-    $scanParagraphs = $settings['scan_paragraphs'];
-    $isRelative = $settings['is_relative'];
-
     // Parse heading field structure.
     $headingFields = [];
     foreach ($settings['heading_fields'] as $repr) {
-      list($entity,$bundle,$fieldName) = explode(':',$repr);
-      $headingFields[$entity][$bundle][$fieldName] = true;
+      list($type,$bundle,$fieldName) = explode(':',$repr);
+      $headingFields[$type][$bundle][$fieldName] = true;
     }
+    $settings['heading_fields'] = $headingFields;
 
-    $result = new TableOfContents($node,$isRelative);
+    // Process the node and cache the result.
+    $result = new TableOfContents($node,$settings['is_relative']);
+    $this->processEntity($result,$node,$settings);
+    $this->cache[$nid] = $result;
 
-    foreach ($node->getFields() as $fieldName => $itemList) {
+    return $result;
+  }
+
+  protected function processEntity(TableOfContents $toc,
+                                   ContentEntityBase $entity,
+                                   array $settings) : void
+  {
+    $fieldTypes = $settings['field_types'];
+    $headingFields = $settings['heading_fields'];
+    $scanParagraphs = $settings['scan_paragraphs'];
+
+    $type = $entity->getEntityTypeId();
+    $bundle = $entity->bundle();
+
+    foreach ($entity->getFields() as $fieldName => $itemList) {
       foreach ($itemList as $delta => $fieldItem) {
         $fieldDef = $fieldItem->getFieldDefinition();
         $fieldType = $fieldDef->getType();
-        $bundle = $fieldDef->getTargetBundle();
 
         // Never process a table of contents field (even if configured).
         if ($fieldType == 'tccl_table_of_contents') {
@@ -124,14 +140,14 @@ class TableOfContentsGenerator {
         // Process paragraph subfields if configured.
         if ($fieldItem instanceof EntityReferenceItem && $scanParagraphs) {
           if ($fieldItem->entity instanceof Paragraph) {
-            $this->processParagraphFields($result,$fieldItem->entity);
+            $this->processEntity($toc,$fieldItem->entity,$settings);
             continue;
           }
         }
 
         // Check if the field is configured as a heading field.
-        if (isset($headingFields['node'][$bundle][$fieldName])) {
-          $this->processHeadingField($result,$fieldItem);
+        if (isset($headingFields[$type][$bundle][$fieldName])) {
+          $this->processHeadingField($toc,$entity,$fieldName,$delta,$fieldItem);
         }
 
         // Only process fields having a configured field type.
@@ -140,13 +156,9 @@ class TableOfContentsGenerator {
         }
 
         // Default case: try processing the field as HTML.
-        $this->processHtml($result,$node,$fieldName,$delta,$fieldItem);
+        $this->processHtml($toc,$entity,$fieldName,$delta,$fieldItem);
       }
     }
-
-    $this->cache[$nid] = $result;
-
-    return $result;
   }
 
   protected function processHtml(TableOfContents $toc,
@@ -227,10 +239,6 @@ class TableOfContentsGenerator {
     $id = static::generateId($text);
     $toc->addHeading($text,$id);
     $toc->setFieldInfo($entity,$fieldName,$delta,$id);
-  }
-
-  protected function processParagraphFields(TableOfContents $toc,Paragraph $paragraph) : void {
-
   }
 
   protected static function generateId(string $label) : string {

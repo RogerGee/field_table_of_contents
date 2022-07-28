@@ -87,7 +87,7 @@ class TableOfContents {
 
     // Extract field information for the node that will are modifying.
     $id = $this->node->id();
-    $type = $this->node->bundle();
+    $type = $this->node->getEntityTypeId();
     $bucket = $this->fieldInfo[$type][$id];
 
     foreach ($bucket as $fieldName => $fields) {
@@ -182,7 +182,7 @@ class TableOfContents {
    */
   public function setFieldInfo(ContentEntityBase $entity,string $fieldName,int $delta,$info) : void {
     $id = $entity->id();
-    $type = $entity->bundle();
+    $type = $entity->getEntityTypeId();
 
     $this->fieldInfo[$type][$id][$fieldName][$delta] = $info;
   }
