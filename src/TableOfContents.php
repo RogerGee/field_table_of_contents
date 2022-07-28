@@ -11,27 +11,22 @@ namespace Drupal\field_table_of_contents;
 use DOMDocument;
 use Drupal\Core\Url;
 use Drupal\Component\Utility\Html;
-use Drupal\Core\Entity\ContentEntityBase;
-use Drupal\node\Entity\Node;
+use Drupal\Core\Entity\ContentEntityInterface;
 
 class TableOfContents {
   /**
-   * The Node entity that generates the page referenced by this table of
-   * contents.
+   * The top-level entity for which the table of contents is generated.
    *
-   * @var \Drupal\node\Entity\Node
+   * @var \Drupal\Core\Entity\ContentEntityInterface
    */
-  private $node;
+  private $entity;
 
   /**
-   * Field information used to preprocess the node entity.
+   * Field information used to preprocess the entity fields.
    *
    * @var array
    */
-  private $fieldInfo = [
-    'node' => [],
-    'paragraph' => [],
-  ];
+  private $fieldInfo = [];
 
   /**
    * Flag determining whether page references are relative or local.
@@ -50,14 +45,14 @@ class TableOfContents {
   /**
    * Creates a new TableOfContents instance.
    *
-   * @param \Drupal\node\Entity\Node
-   *  The Node entity from which the table of contents entries are generated.
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *  The top-level entity for which the table of contents is generated.
    * @param bool $isRelative
    *  Determines whether table of contents references are relative to the page
    *  or absolute.
    */
-  public function __construct(Node $node,bool $isRelative = true) {
-    $this->node = $node;
+  public function __construct(ContentEntityInterface $entity,bool $isRelative = true) {
+    $this->entity = $entity;
     $this->isRelative = $isRelative;
   }
 
@@ -76,19 +71,19 @@ class TableOfContents {
   }
 
   /**
-   * Preprocesses the render array for the node entity. This method assumes the
-   * indicated render array is for the bound node.
+   * Preprocesses the render array for an entity using any stored field
+   * information.
    *
    * @param array &$render
    *  The render array to modify.
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *  The entity that is being rendered.
    */
-  public function preprocessNode(array &$render) : void {
-    assert(isset($render['node']) && $render['node'] === $this->node);
-
+  public function preprocessEntity(array &$render,ContentEntityInterface $entity) : void {
     // Extract field information for the node that will are modifying.
-    $id = $this->node->id();
-    $type = $this->node->getEntityTypeId();
-    $bucket = $this->fieldInfo[$type][$id];
+    $id = $entity->id();
+    $type = $entity->getEntityTypeId();
+    $bucket = $this->fieldInfo[$type][$id] ?? [];
 
     foreach ($bucket as $fieldName => $fields) {
       foreach ($fields as $delta => $info) {
@@ -146,7 +141,7 @@ class TableOfContents {
       $anchorUrl = Url::fromRoute('<none>',[],['fragment' => $id]);
     }
     else {
-      $anchorUrl = $this->node->toUrl();
+      $anchorUrl = $this->entity->toUrl();
       $anchorUrl->setOption('fragment',$id);
     }
 
@@ -167,7 +162,7 @@ class TableOfContents {
    * Adds field information that is used when the attached entity is
    * preprocessed.
    *
-   * @param \Drupal\Core\Entity\ContentEntityBase $entity
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
    *  The entity that contains the field.
    * @param string $fieldName
    *  The name of the field whose content is represented by the DOM.
@@ -180,7 +175,7 @@ class TableOfContents {
    *   - string: A unique identifier for the field that will be used to
    *     generate an anchor injected before the field element.
    */
-  public function setFieldInfo(ContentEntityBase $entity,string $fieldName,int $delta,$info) : void {
+  public function setFieldInfo(ContentEntityInterface $entity,string $fieldName,int $delta,$info) : void {
     $id = $entity->id();
     $type = $entity->getEntityTypeId();
 

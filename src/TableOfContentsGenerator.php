@@ -10,21 +10,19 @@ namespace Drupal\field_table_of_contents;
 
 use DOMDocument;
 use Drupal\Component\Utility\Html;
-use Drupal\Core\Entity\ContentEntityBase;
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem;
 use Drupal\Core\Render\Renderer;
-use Drupal\node\Entity\Node;
 use Drupal\paragraphs\Entity\Paragraph;
 
 /**
  * Service that generates a table of contents structure.
  *
- * This generator works by iterating across the fields of a content
- * entity. (Currently, we only support node.) As the generator iterates, it
- * identifies headings to add to the table of contents structure. (This can
- * include nested headings as well.)
+ * This generator works by iterating across the fields of a content entity. As
+ * the generator iterates, it identifies headings to add to the table of
+ * contents structure. (This can include nested headings as well.)
  *
  * Headings are identified in several different ways:
  *  1) By interpreting a field value as HTML and parsing for heading tags.
@@ -75,22 +73,22 @@ class TableOfContentsGenerator {
   /**
    * Looks up an existing, cached table of contents for the indicated node entity.
    *
-   * @param \Drupal\node\Entity\Node $node
-   *  The node entity to search.
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *  The entity used to key a cached table of contents.
    *
    * @return \Drupal\field_table_of_contents\TableOfContents
    *  Returns the table of contents if one exists or null if not found.
    */
-  public function lookup(Node $node) : ?TableOfContents {
-    $nid = $node->id();
-    return $this->cache[$nid] ?? null;
+  public function lookup(ContentEntityInterface $entity) : ?TableOfContents {
+    $cacheKey = static::makeCacheKey($entity);
+    return $this->cache[$cacheKey] ?? null;
   }
 
   /**
-   * Generates a table of contents structure for the indicated node entity.
+   * Generates a table of contents structure for the indicated entity.
    *
-   * @param \Drupal\node\Entity\Node $node
-   *  The node entity to search.
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *  The top-level entity for which to generate a table of contents.
    * @param array $settings
    *  Settings to apply that affect how the table of contents is generated.
    *  - field_types: List of field type machine names that are to be searched for
@@ -103,11 +101,11 @@ class TableOfContentsGenerator {
    *
    * @return \Drupal\field_table_of_contents\TableOfContents
    */
-  public function generate(Node $node,array $settings = [],bool $cache = true) : TableOfContents {
+  public function generate(ContentEntityInterface $entity,array $settings = [],bool $cache = true) : TableOfContents {
     // Look up and return cached version if present and configured.
-    $nid = $node->id();
-    if ($cache && isset($this->cache[$nid])) {
-      return $this->cache[$nid];
+    $cacheKey = static::makeCachekey($entity);
+    if ($cache && isset($this->cache[$cacheKey])) {
+      return $this->cache[$cacheKey];
     }
 
     // Extract settings.
@@ -128,15 +126,14 @@ class TableOfContentsGenerator {
     $settings['heading_fields'] = $headingFields;
 
     // Process the node and cache the result.
-    $result = new TableOfContents($node,$settings['is_relative']);
-    $this->processEntity($result,$node,$settings);
-    $this->cache[$nid] = $result;
+    $result = new TableOfContents($entity,$settings['is_relative']);
+    $this->processEntity($result,$entity,$settings);
 
     return $result;
   }
 
   protected function processEntity(TableOfContents $toc,
-                                   ContentEntityBase $entity,
+                                   ContentEntityInterface $entity,
                                    array $settings) : void
   {
     // Extract settings.
@@ -201,10 +198,14 @@ class TableOfContentsGenerator {
         $this->processHtml($toc,$entity,$fieldName,$delta,$fieldItem);
       }
     }
+
+    // Cache the table by entity ID. Note that nested entities are also
+    // recursively used as indeces as well.
+    $this->cache[static::makeCacheKey($entity)] = $toc;
   }
 
   protected function processHtml(TableOfContents $toc,
-                                 ContentEntityBase $entity,
+                                 ContentEntityInterface $entity,
                                  string $fieldName,
                                  int $delta,
                                  FieldItemInterface $fieldItem) : void
@@ -272,7 +273,7 @@ class TableOfContentsGenerator {
   }
 
   protected function processHeadingField(TableOfContents $toc,
-                                         ContentEntityBase $entity,
+                                         ContentEntityInterface $entity,
                                          string $fieldName,
                                          int $delta,
                                          FieldItemInterface $fieldItem) : void
@@ -285,5 +286,11 @@ class TableOfContentsGenerator {
 
   protected static function generateId(string $label) : string {
     return preg_replace('/[^0-9a-zA-Z\.]+/','-',$label);
+  }
+
+  protected static function makeCacheKey(ContentEntityInterface $entity) : string {
+    $id = $entity->id();
+    $type = $entity->getEntityTypeId();
+    return "$type:$id";
   }
 }

@@ -26,11 +26,25 @@ function field_table_of_contents_theme($existing,$type,$theme,$path) {
 function field_table_of_contents_preprocess_node(&$variables) {
   $generator = Drupal::service('field_table_of_contents.generator');
 
-  $node = $variables['elements']['#node'];
+  $node = $variables['node'];
   $toc = $generator->lookup($node);
 
   if ($toc) {
-    $toc->preprocessNode($variables);
+    $toc->preprocessEntity($variables,$node);
+  }
+}
+
+/**
+ * Implements hook_preprocess_paragraph().
+ */
+function field_table_of_contents_preprocess_paragraph(&$variables) {
+  $generator = Drupal::service('field_table_of_contents.generator');
+
+  $paragraph = $variables['paragraph'];
+  $toc = $generator->lookup($paragraph);
+
+  if ($toc) {
+    $toc->preprocessEntity($variables,$paragraph);
   }
 }
 
