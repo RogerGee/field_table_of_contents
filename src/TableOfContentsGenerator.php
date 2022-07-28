@@ -11,6 +11,7 @@ namespace Drupal\field_table_of_contents;
 use DOMDocument;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\ContentEntityBase;
+use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\Field\Plugin\Field\FieldType\EntityReferenceItem;
 use Drupal\Core\Render\Renderer;
@@ -31,11 +32,25 @@ use Drupal\paragraphs\Entity\Paragraph;
  */
 class TableOfContentsGenerator {
   /**
+   * The entity type manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManager
+   */
+  private $entityTypeManager;
+
+  /**
    * The core rendering service.
    *
    * @var \Drupal\Core\Render\Renderer
    */
   private $renderer;
+
+  /**
+   * The entity view display storage.
+   *
+   * @var \Drupal\Core\Entity\EntityStorageInterface
+   */
+  private $storage;
 
   /**
    * In-memory cache.
@@ -47,10 +62,14 @@ class TableOfContentsGenerator {
   /**
    * Creates a new TableOfContentsGenerator instance.
    *
-   * @param \Drupal\Core\Render\Renderer
+   * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
+   * @param \Drupal\Core\Render\Renderer $renderer
    */
-  public function __construct(Renderer $renderer) {
+  public function __construct(EntityTypeManager $entityTypeManager,Renderer $renderer) {
+    $this->entityTypeManager = $entityTypeManager;
     $this->renderer = $renderer;
+
+    $this->storage = $this->entityTypeManager->getStorage('entity_view_display');
   }
 
   /**
@@ -120,14 +139,37 @@ class TableOfContentsGenerator {
                                    ContentEntityBase $entity,
                                    array $settings) : void
   {
+    // Extract settings.
     $fieldTypes = $settings['field_types'];
     $headingFields = $settings['heading_fields'];
     $scanParagraphs = $settings['scan_paragraphs'];
 
+    // Get entity type and bundle.
     $type = $entity->getEntityTypeId();
     $bundle = $entity->bundle();
 
-    foreach ($entity->getFields() as $fieldName => $itemList) {
+    // Sort fields using the default display configuration. This also will hide
+    // any fields that were disabled.
+    $fields = $entity->getFields();
+    $storageId = "$type.$bundle.default";
+    $viewDisplay = $this->storage->load($storageId);
+    if ($viewDisplay) {
+      $fs = $viewDisplay->getComponents();
+      uasort($fs,function($a,$b) {
+        return $a['weight'] - $b['weight'];
+      });
+      $fieldOrder = array_keys($fs);
+    }
+    else {
+      $fieldOrder = array_keys($fields);
+    }
+
+    foreach ($fieldOrder as $fieldName) {
+      if (!isset($fields[$fieldName])) {
+        continue;
+      }
+
+      $itemList = $fields[$fieldName];
       foreach ($itemList as $delta => $fieldItem) {
         $fieldDef = $fieldItem->getFieldDefinition();
         $fieldType = $fieldDef->getType();
