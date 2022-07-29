@@ -8,4 +8,7 @@ type: module
 core_version_requirement: ^8.7.7 || ^9
 version: 1.0.0-dev
 
+dependencies:
+  - node
+
 php: 7.3
