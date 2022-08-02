@@ -8,6 +8,7 @@
 
 namespace Drupal\field_table_of_contents\Plugin\Field\FieldFormatter;
 
+use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -149,7 +150,7 @@ class TableOfContentsFieldFormatter extends FormatterBase {
    */
   public function viewElements(FieldItemListInterface $items,$langcode = null) {
     $generator = \Drupal::service('field_table_of_contents.generator');
-    $entity = $items->getEntity();
+    $parentEntity = $items->getEntity();
 
     // Prepare generator settings from formatter settings.
     $settings = [
@@ -160,15 +161,15 @@ class TableOfContentsFieldFormatter extends FormatterBase {
 
     $elements = [];
     foreach ($items as $delta => $item) {
-      // Determine which content node is to be used to generate the table of
+      // Determine which content entity is to be used to generate the table of
       // contents. This is either the one assigned to the table of contents
-      // field or the parent node if none was assigned.
+      // field or the parent entity if none was assigned.
       if (isset($item->nid)) {
-        $node = Node::load($item->nid);
+        $entity = Node::load($item->nid);
         $settings['is_relative'] = false;
       }
-      else if ($entity instanceof Node) {
-        $node = $entity;
+      else if ($parentEntity instanceof ContentEntityInterface) {
+        $entity = $parentEntity;
         $settings['is_relative'] = true;
       }
       else {
@@ -179,7 +180,7 @@ class TableOfContentsFieldFormatter extends FormatterBase {
       }
 
       // Render the table of contents.
-      $toc = $generator->generate($node,$settings);
+      $toc = $generator->generate($entity,$settings);
       $render = $toc->toRenderArray();
 
       // Apply any remaining proerties.
