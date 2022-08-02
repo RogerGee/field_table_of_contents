@@ -1,0 +1,6 @@
+## field_table_of_contents.services.yml
+
+services:
+  field_table_of_contents.generator:
+    class: '\Drupal\field_table_of_contents\TableOfContentsGenerator'
+    arguments: ['@entity_type.manager','@renderer']

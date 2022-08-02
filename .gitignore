@@ -1,0 +1,5 @@
+#
+# .gitignore - field_table_of_contents
+#
+
+/vendor/
