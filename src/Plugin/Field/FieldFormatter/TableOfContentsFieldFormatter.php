@@ -8,6 +8,7 @@
 
 namespace Drupal\field_table_of_contents\Plugin\Field\FieldFormatter;
 
+use Drupal\paragraphs\ParagraphInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FormatterBase;
@@ -151,6 +152,10 @@ class TableOfContentsFieldFormatter extends FormatterBase {
   public function viewElements(FieldItemListInterface $items,$langcode = null) {
     $generator = \Drupal::service('field_table_of_contents.generator');
     $parentEntity = $items->getEntity();
+
+    while ($parentEntity instanceof ParagraphInterface) {
+      $parentEntity = $parentEntity->getParentEntity();
+    }
 
     // Prepare generator settings from formatter settings.
     $settings = [
