@@ -47,6 +47,10 @@ class TableOfContentsFieldFormatter extends FormatterBase {
       // If a 'paragraph' entity revision field is found, the table of contents
       // will recurse through any child paragraph fields.
       'scan_paragraphs' => true,
+
+      // If the field targets another page, then the title element will link to
+      // this page.
+      'hyperlink_title' => true,
     ];
 
     return $settings;
@@ -135,12 +139,23 @@ class TableOfContentsFieldFormatter extends FormatterBase {
     $form['scan_paragraphs'] = [
       '#type' => 'checkbox',
       '#return_value' => 1,
-      '#title' => 'Scan Paragraphs',
+      '#title' => $this->t('Scan Paragraphs'),
       '#default_value' => $this->getSetting('scan_paragraphs'),
       '#description' => $this->t(
         'Toggles scanning of Paragraph field instances when generating the '
         .'table of contents.'
       ),
+    ];
+
+    $form['hyperlink_title'] = [
+      '#type' => 'checkbox',
+      '#return_value' => 1,
+      '#title' => $this->t('Hyperlink Page Titles'),
+      '#default_value' => $this->getSetting('hyperlink_title'),
+      '#description' => $this->t(
+        'If the table of contents field targets another page, then the '
+        .'page title element will link to that page if enabled.'
+      )
     ];
 
     return $form;
@@ -164,14 +179,26 @@ class TableOfContentsFieldFormatter extends FormatterBase {
       'scan_paragraphs' => (bool)$this->getSetting('scan_paragraphs'),
     ];
 
+    $hyperlinkTitle = (bool)$this->getSetting('hyperlink_title');
+
     $elements = [];
     foreach ($items as $delta => $item) {
+      $title = $item->title;
+
       // Determine which content entity is to be used to generate the table of
       // contents. This is either the one assigned to the table of contents
       // field or the parent entity if none was assigned.
       if (isset($item->nid)) {
         $entity = Node::load($item->nid);
         $settings['is_relative'] = false;
+
+        if ($hyperlinkTitle) {
+          $title = [
+            '#type' => 'link',
+            '#title' => $title,
+            '#url' => $entity->toUrl(),
+          ];
+        }
       }
       else if ($parentEntity instanceof ContentEntityInterface) {
         $entity = $parentEntity;
@@ -190,7 +217,7 @@ class TableOfContentsFieldFormatter extends FormatterBase {
 
       // Apply any remaining proerties.
       $render += [
-        '#title' => $item->title,
+        '#title' => $title,
       ];
 
       $elements[$delta] = $render;
