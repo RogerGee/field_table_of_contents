@@ -240,8 +240,9 @@ class TableOfContentsGenerator {
         continue;
       }
 
-      if (isset($node->attributes['id']) && !empty($node->attributes['id'])) {
-        $id = $node->attributes['id'];
+      $idAttr = $node->attributes->getNamedItem('id');
+      if (isset($idAttr)) {
+        $id = $idAttr->value;
       }
       else {
         $id = static::generateId($label);
