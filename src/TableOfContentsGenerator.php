@@ -235,13 +235,14 @@ class TableOfContentsGenerator {
     // this is commonly used in Drupal for page titles only.
     $n = 0;
     foreach ($nodes as $node) {
-      $label = trim($node->nodeValue);
+      $label = trim($node->nodeValue,"\xc2\xa0 \t\n\r\0\v");
       if (empty($label)) {
         continue;
       }
 
-      if (isset($node->attributes['id']) && !empty($node->attributes['id'])) {
-        $id = $node->attributes['id'];
+      $idAttr = $node->attributes->getNamedItem('id');
+      if (isset($idAttr)) {
+        $id = $idAttr->value;
       }
       else {
         $id = static::generateId($label);
@@ -278,7 +279,8 @@ class TableOfContentsGenerator {
                                          int $delta,
                                          FieldItemInterface $fieldItem) : void
   {
-    $text = substr(trim($fieldItem->getString()),0,128);
+    $text = trim($fieldItem->getString(),"\xc2\xa0 \t\n\r\0\v");
+    $text = substr($text,0,128);
     $id = static::generateId($text);
     $toc->addHeading($text,$id);
     $toc->setFieldInfo($entity,$fieldName,$delta,$id);
